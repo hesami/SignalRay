@@ -285,7 +285,15 @@ function buildSingboxOutbound(profile, settings) {
     return undefined; // tcp / raw
   })();
 
-  const multiplex = settings && settings.enableMux ? { enabled: true, protocol: 'smux', max_connections: settings.muxConcurrency || 8 } : undefined;
+  // sing-box (unlike Xray) hard-rejects a VLESS config where XTLS flow is
+  // combined with multiplex, or with anything other than raw TCP transport.
+  // Drop whichever is invalid instead of producing a config sing-box refuses
+  // to start at all.
+  const isVisionFlow = profile.protocol === 'vless' && profile.flow === 'xtls-rprx-vision';
+  const flow = isVisionFlow && !transport ? profile.flow : undefined;
+  const multiplex = settings && settings.enableMux && !isVisionFlow
+    ? { enabled: true, protocol: 'smux', max_connections: settings.muxConcurrency || 8 }
+    : undefined;
   const tcpFastOpen = settings && settings.enableTcpFastOpen ? true : undefined;
 
   if (profile.protocol === 'vless') {
@@ -295,7 +303,7 @@ function buildSingboxOutbound(profile, settings) {
       server: profile.address,
       server_port: profile.port,
       uuid: profile.uuid,
-      flow: profile.flow || undefined,
+      flow,
       tcp_fast_open: tcpFastOpen,
       tls,
       transport,
