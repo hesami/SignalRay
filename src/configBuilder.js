@@ -482,7 +482,13 @@ function buildSingboxConfig(profile, settings) {
             // the real domain is read straight off the connection and sent
             // to the tunnel server to resolve — so proxied browsing never
             // waits on DNS at all.
-            ...(dnsThroughTunnel ? [{ tag: 'fakeip', type: 'fakeip', inet4_range: '198.18.0.0/15', inet6_range: 'fc00::/18' }] : [])
+            ...(dnsThroughTunnel ? [{ tag: 'fakeip', type: 'fakeip', inet4_range: '198.18.0.0/15', inet6_range: 'fc00::/18' }] : []),
+            // Resolves the TUNNEL SERVER'S OWN hostname (when it's a domain,
+            // not a raw IP) directly/undetoured. This one lookup must not go
+            // through "proxy" — the proxy outbound can't be reached until its
+            // own address is known, so detouring it would deadlock (exactly
+            // what caused every connection to hang for 10s and time out).
+            { tag: 'bootstrap', type: 'udp', server: dnsList[0] }
           ],
           rules: dnsThroughTunnel ? [{ query_type: ['A', 'AAAA'], server: 'fakeip' }] : undefined,
           independent_cache: true,
@@ -505,7 +511,7 @@ function buildSingboxConfig(profile, settings) {
     route: {
       rule_set: ruleSets.length ? ruleSets : undefined,
       rules: routeRules,
-      default_domain_resolver: dnsList.length ? 'dns-0' : undefined,
+      default_domain_resolver: dnsList.length ? 'bootstrap' : undefined,
       final: finalTag
     }
   };
