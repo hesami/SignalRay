@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+<title>SignalRay</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-drag">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">SignalRay</span>
+      </div>
+      <div class="topbar-controls">
+        <button id="btn-min" class="win-btn" title="کوچک کردن">&#x2013;</button>
+        <button id="btn-close" class="win-btn win-btn-close" title="بستن به سینی">&#x2715;</button>
+      </div>
+    </header>
+
+    <!-- Screens -->
+    <main class="screens">
+
+      <!-- HOME -->
+      <section id="screen-home" class="screen active">
+
+        <div class="hero-topline">
+          <button id="btn-quick-refresh" class="hero-icon-btn" title="بروزرسانی">
+            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9M3 12l3-3M3 12l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span class="core-badge" id="core-badge"><span class="core-badge-dot"></span><span id="core-badge-text">Xray-core</span></span>
+        </div>
+
+        <div class="hero-title">وضعیت اتصال</div>
+        <div id="btn-pick-profile" class="hero-status-row">
+          <span class="profile-pill-dot" id="profile-pill-dot"></span>
+          <span id="hero-status-text">غیرفعال</span>
+        </div>
+        <div class="hero-uptime" id="hero-uptime">۰۰:۰۰:۰۰</div>
+
+        <div class="power-wrap">
+          <div class="netmap-bg" aria-hidden="true">
+            <span class="netmap-dot d1"></span><span class="netmap-dot d2"></span><span class="netmap-dot d3"></span>
+            <span class="netmap-dot d4"></span><span class="netmap-dot d5"></span><span class="netmap-dot d6"></span>
+            <span class="netmap-dot d7"></span><span class="netmap-dot d8"></span><span class="netmap-dot d9"></span>
+            <span class="netmap-dot d10"></span><span class="netmap-dot d11"></span><span class="netmap-dot d12"></span>
+            <svg class="netmap-arcs" viewBox="0 0 300 300"><path d="M40,150 Q150,60 260,140" fill="none" stroke="currentColor" stroke-width="1"/><path d="M55,200 Q150,240 245,190" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+          </div>
+          <svg id="ring-svg" viewBox="0 0 300 300" class="power-ring" data-state="idle">
+            <defs>
+              <linearGradient id="ring-grad-quality" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#3be6b0"/>
+                <stop offset="45%" stop-color="#3ec7e0"/>
+                <stop offset="75%" stop-color="#5b8def"/>
+                <stop offset="100%" stop-color="#9a6dfb"/>
+              </linearGradient>
+            </defs>
+            <circle class="ring-track" cx="150" cy="150" r="122"></circle>
+            <circle id="ring-fill" class="ring-fill" cx="150" cy="150" r="122"></circle>
+          </svg>
+          <button id="btn-toggle-connect" class="power-btn" disabled>
+            <svg viewBox="0 0 24 24" width="34" height="34"><path d="M12 3v9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M7 5.5a8 8 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <div id="particle-layer" class="particle-layer"></div>
+        </div>
+
+        <div class="stats-strip">
+          <div class="stats-col">
+            <div class="stats-icon icon-up"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="stats-value"><span id="stat-upload">۰</span></div>
+            <div class="stats-unit" id="stat-upload-unit">KB/s</div>
+            <div class="stats-caption">سرعت آپلود</div>
+          </div>
+          <div class="stats-col stats-col-mid">
+            <div class="stats-icon icon-proto"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="stats-value stats-value-small" id="stat-protocol">VLESS</div>
+            <div class="stats-caption">پروتکل</div>
+          </div>
+          <div class="stats-col">
+            <div class="stats-icon icon-down"><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="stats-value"><span id="stat-download">۰</span></div>
+            <div class="stats-unit" id="stat-download-unit">KB/s</div>
+            <div class="stats-caption">سرعت دانلود</div>
+          </div>
+        </div>
+
+        <div id="row-server-ip" class="server-row">
+          <span class="server-row-flag">
+            <svg viewBox="0 0 24 24"><path d="M4 4v16M4 5h13l-2.5 3L17 11H4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="server-row-text">
+            <span class="server-row-name" id="status-profile">کانفیگی انتخاب نشده</span>
+            <span class="server-row-sub" id="server-ip-value">مشخص نشده</span>
+          </span>
+          <span class="server-row-signal" id="server-row-signal">
+            <svg viewBox="0 0 20 14" width="20" height="14"><rect x="1" y="9" width="3" height="5" rx="1"/><rect x="6" y="6" width="3" height="8" rx="1"/><rect x="11" y="3" width="3" height="11" rx="1"/><rect x="16" y="0" width="3" height="14" rx="1"/></svg>
+          </span>
+        </div>
+
+        <div id="sub-quota-card" class="sub-quota-card hidden"><!-- injected when connected via a subscription config --></div>
+
+        <button id="btn-goto-profiles-banner" class="choose-banner">
+          <span class="choose-banner-chevron">‹</span>
+          <span class="choose-banner-text">
+            <span class="choose-banner-title">کانفیگ‌ها</span>
+            <span class="choose-banner-sub">افزودن یا تعویض کانفیگ</span>
+          </span>
+          <span class="choose-banner-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15.5 0 18M12 3c-2.5 2.5-2.5 15.5 0 18" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+          </span>
+        </button>
+
+        <div class="quick-grid">
+          <button class="quick-tile" id="tile-speedtest">
+            <span class="quick-tile-icon tile-purple"><svg viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 1 9-9M12 12l4-5M4 12h1M7.5 5.5l.7.7M19 12h1M16.5 5.5l-.7.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+            <span>تست سرعت</span>
+          </button>
+          <button class="quick-tile" id="tile-mtu">
+            <span class="quick-tile-icon tile-blue"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7 11v2M11 10v3M15 9v4M17 11v2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+            <span>یافتن MTU</span>
+          </button>
+          <button class="quick-tile" id="tile-smart-tunnel">
+            <span class="quick-tile-icon tile-teal"><svg viewBox="0 0 24 24"><path d="M4 12c3-5 13-5 16 0M4 12c3 5 13 5 16 0" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg></span>
+            <span>تونل هوشمند</span>
+          </button>
+          <button class="quick-tile" id="tile-history">
+            <span class="quick-tile-icon tile-pink"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span>تاریخچه اتصال</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- PROFILES -->
+      <section id="screen-profiles" class="screen">
+        <div class="profile-tabs">
+          <button class="profile-tab-btn active" data-profile-tab="standalone">کانفیگ‌های مستقل</button>
+          <button class="profile-tab-btn" data-profile-tab="subscriptions">سابسکریپشن‌ها</button>
+        </div>
+
+        <!-- Standalone (ungrouped) configs -->
+        <div id="profile-tab-standalone" class="profile-tab-panel active">
+          <div class="screen-head">
+            <input id="search-input" class="search-input" type="text" placeholder="جست‌وجوی کانفیگ‌ها…" />
+            <button id="btn-ping-all" class="btn-icon-add" title="پینگ همه">
+              <svg viewBox="0 0 24 24" width="17" height="17"><path d="M3 12a9 9 0 1 0 9-9M3 12l3-3M3 12l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button id="btn-add-profile" class="btn-icon-add" title="افزودن کانفیگ">+</button>
+          </div>
+          <div id="profile-list" class="profile-list"><!-- injected --></div>
+          <div class="screen-foot">
+            <span id="profile-count" class="muted-small">۰ کانفیگ</span>
+          </div>
+        </div>
+
+        <!-- Subscriptions (grouped, each expandable) -->
+        <div id="profile-tab-subscriptions" class="profile-tab-panel">
+          <div class="screen-head">
+            <button id="btn-add-subscription" class="btn-primary full-width">+ افزودن سابسکریپشن</button>
+          </div>
+          <div id="subscriptions-list" class="subscriptions-list"><!-- injected --></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="screen-settings" class="screen">
+        <div class="settings-scroll">
+
+          <div class="settings-card">
+            <h3>مسیر هسته‌ها</h3>
+            <label class="field-label">Xray-core</label>
+            <div class="path-row">
+              <input id="path-xray" class="path-input" type="text" placeholder="مسیر xray.exe" readonly />
+              <button id="btn-browse-xray" class="btn-secondary">انتخاب</button>
+            </div>
+            <label class="field-label">sing-box</label>
+            <div class="path-row">
+              <input id="path-singbox" class="path-input" type="text" placeholder="مسیر sing-box.exe" readonly />
+              <button id="btn-browse-singbox" class="btn-secondary">انتخاب</button>
+            </div>
+            <label class="field-label">هستهٔ فعال</label>
+            <div class="radio-row">
+              <label class="radio-pill"><input type="radio" name="active-core" value="xray" /> Xray-core</label>
+              <label class="radio-pill"><input type="radio" name="active-core" value="singbox" /> sing-box</label>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>شبکه محلی</h3>
+            <div class="field-row">
+              <div class="field-col">
+                <label class="field-label">درگاه SOCKS5</label>
+                <input id="port-socks" class="text-input" type="number" min="1" max="65535" />
+              </div>
+              <div class="field-col">
+                <label class="field-label">درگاه HTTP</label>
+                <input id="port-http" class="text-input" type="number" min="1" max="65535" />
+              </div>
+            </div>
+            <label class="toggle-row"><input id="toggle-system-proxy" type="checkbox" /><span>تنظیم خودکار پروکسی سیستم</span></label>
+            <label class="toggle-row"><input id="toggle-bypass-lan" type="checkbox" /><span>عبور مستقیم ترافیک LAN</span></label>
+            <label class="toggle-row"><input id="toggle-bypass-ir" type="checkbox" /><span>عبور مستقیم ترافیک ایران</span></label>
+            <label class="toggle-row"><input id="toggle-auto-select-best" type="checkbox" /><span>انتخاب خودکار بهترین کانفیگ هنگام اتصال (بر اساس پینگ)</span></label>
+            <label class="toggle-row"><input id="toggle-periodic-health" type="checkbox" /><span>پینگ خودکار دوره‌ای حین اتصال (مصرف پهنای‌باند ناچیز اضافه می‌کند)</span></label>
+            <label class="toggle-row"><input id="toggle-live-stats" type="checkbox" /><span>نمایش آمار سرعت/مصرف زنده (اگر خاموش کنید، هیچ فرآیند اضافه‌ای روی سیستم اجرا نمی‌شود)</span></label>
+          </div>
+
+          <div class="settings-card">
+            <h3>DNS و MTU</h3>
+            <p class="settings-hint">تنظیم DNS سریع می‌تواند تفکیک نام دامنه و در نتیجه سرعت اتصال اولیه را بهبود دهد. یافتن MTU مناسب از افت سرعت به‌خاطر خرد شدن بسته‌ها (فرگمنتیشن) جلوگیری می‌کند.</p>
+            <label class="field-label">سرورهای DNS (با کاما جدا شود)</label>
+            <input id="dns-servers" class="text-input" type="text" placeholder="1.1.1.1,1.0.0.1" dir="ltr" />
+            <label class="toggle-row"><input id="toggle-dns-through-tunnel" type="checkbox" /><span>حل DNS از طریق تونل (توصیه‌شده برای جلوگیری از قطعی DNSهای عمومی)</span></label>
+            <label class="field-label">MTU</label>
+            <div class="path-row">
+              <input id="mtu-value" class="text-input" type="number" min="576" max="1500" placeholder="۱۴۲۰ (پیش‌فرض)" />
+              <button id="btn-find-mtu" class="btn-secondary">یافتن خودکار</button>
+            </div>
+            <span id="mtu-status-msg" class="saved-msg"></span>
+          </div>
+
+          <div class="settings-card">
+            <h3>سرعت و ضد شناسایی DPI</h3>
+            <p class="settings-hint">فرگمنت و Mux مصرف کننده سرعت به نفع دورزدن فیلترینگ‌اند؛ فقط در صورت نیاز واقعی روشن کنید. بقیهٔ گزینه‌ها معمولاً سرعت را بهبود می‌دهند.</p>
+            <label class="toggle-row"><input id="toggle-fragment" type="checkbox" /><span>تکه‌تکه کردن TLS ClientHello (ضد DPI، کاهندهٔ سرعت)</span></label>
+            <label class="toggle-row"><input id="toggle-mux" type="checkbox" /><span>چندگانه‌سازی اتصال (Mux)</span></label>
+            <div class="field-row" id="mux-concurrency-row">
+              <div class="field-col">
+                <label class="field-label">تعداد کانال Mux</label>
+                <input id="mux-concurrency" class="text-input" type="number" min="1" max="32" />
+              </div>
+            </div>
+            <label class="toggle-row"><input id="toggle-tfo" type="checkbox" /><span>TCP Fast Open (معمولاً سرعت را بهتر می‌کند)</span></label>
+            <label class="field-label">استراتژی تفکیک دامنه (Domain Strategy)</label>
+            <select id="select-domain-strategy" class="text-input">
+              <option value="AsIs">AsIs (سریع‌ترین، بدون تفکیک اضافه)</option>
+              <option value="IPIfNonMatch">IPIfNonMatch (پیشنهادی)</option>
+              <option value="UseIP">UseIP</option>
+            </select>
+            <label class="field-label">اثر انگشت TLS پیش‌فرض (uTLS Fingerprint)</label>
+            <select id="select-fingerprint" class="text-input">
+              <option value="chrome">Chrome</option>
+              <option value="firefox">Firefox</option>
+              <option value="safari">Safari</option>
+              <option value="edge">Edge</option>
+              <option value="ios">iOS</option>
+              <option value="android">Android</option>
+              <option value="random">تصادفی (Random)</option>
+            </select>
+          </div>
+
+          <div class="settings-card">
+            <h3>فایل‌های Geo (موقعیت جغرافیایی IP)</h3>
+            <p class="settings-hint">برای فعال بودن گزینهٔ «عبور مستقیم ترافیک ایران» لازم است.</p>
+            <div id="geo-fields-xray">
+              <label class="field-label">geoip.dat (Xray)</label>
+              <div class="path-row">
+                <input id="path-geoip-dat" class="path-input" type="text" placeholder="مسیر geoip.dat" readonly />
+                <button id="btn-browse-geoip" class="btn-secondary">انتخاب</button>
+              </div>
+              <label class="field-label">geosite.dat (Xray)</label>
+              <div class="path-row">
+                <input id="path-geosite-dat" class="path-input" type="text" placeholder="مسیر geosite.dat" readonly />
+                <button id="btn-browse-geosite" class="btn-secondary">انتخاب</button>
+              </div>
+            </div>
+            <div id="geo-fields-singbox" class="hidden">
+              <label class="field-label">geoip-ir.srs (sing-box)</label>
+              <div class="path-row">
+                <input id="path-geoip-srs" class="path-input" type="text" placeholder="مسیر geoip-ir.srs" readonly />
+                <button id="btn-browse-geoip-srs" class="btn-secondary">انتخاب</button>
+              </div>
+            </div>
+            <button id="btn-update-geo" class="btn-primary full-width">دانلود / بروزرسانی فایل‌های Geo</button>
+            <span id="geo-update-msg" class="saved-msg"></span>
+          </div>
+
+          <div class="settings-card">
+            <h3>ظاهر برنامه</h3>
+            <label class="field-label">اندازهٔ نوشته‌ها</label>
+            <div class="font-scale-row">
+              <button id="font-dec" class="btn-mini font-btn">آ−</button>
+              <input id="font-scale-slider" type="range" min="0.9" max="1.5" step="0.05" />
+              <button id="font-inc" class="btn-mini font-btn">آ+</button>
+            </div>
+            <label class="field-label">سطح گزارش‌گیری</label>
+            <select id="select-loglevel" class="text-input">
+              <option value="none">هیچ‌کدام</option>
+              <option value="warning">هشدار (پیشنهادی)</option>
+              <option value="info">اطلاعات</option>
+              <option value="debug">اشکال‌زدایی (کامل)</option>
+            </select>
+          </div>
+
+          <button id="btn-save-settings" class="btn-primary full-width">ذخیرهٔ تنظیمات</button>
+          <span id="settings-saved-msg" class="saved-msg center-msg"></span>
+        </div>
+      </section>
+
+      <!-- LOGS -->
+      <section id="screen-logs" class="screen">
+        <div class="log-panel">
+          <div class="log-panel-head">
+            <div class="log-panel-title">
+              <span class="log-panel-dot" id="log-panel-dot"></span>
+              <span>گزارش زنده هسته</span>
+            </div>
+            <div class="log-panel-actions">
+              <span class="log-line-count" id="log-line-count">۰ خط</span>
+              <button id="btn-copy-log" class="btn-mini log-action-btn" title="کپی کل گزارش">
+                <svg viewBox="0 0 24 24" width="13" height="13"><rect x="8" y="8" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+                <span>کپی</span>
+              </button>
+              <button id="btn-clear-log" class="btn-mini log-action-btn" title="پاک‌سازی">
+                <svg viewBox="0 0 24 24" width="13" height="13"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>پاک‌سازی</span>
+              </button>
+            </div>
+          </div>
+          <pre id="log-output" class="log-output"></pre>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom nav -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-screen="home">
+        <svg viewBox="0 0 24 24" class="nav-icon"><path d="M4 11.5L12 4l8 7.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        <span>خانه</span>
+      </button>
+      <button class="nav-btn" data-screen="profiles">
+        <svg viewBox="0 0 24 24" class="nav-icon"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span>کانفیگ‌ها</span>
+      </button>
+      <button class="nav-btn" data-screen="settings">
+        <svg viewBox="0 0 24 24" class="nav-icon"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.4 5.6l-1.5 1.5M7.1 16.9l-1.5 1.5M18.4 18.4l-1.5-1.5M7.1 7.1L5.6 5.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span>تنظیمات</span>
+      </button>
+      <button class="nav-btn" data-screen="logs">
+        <svg viewBox="0 0 24 24" class="nav-icon"><rect x="3.5" y="4" width="17" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 9h6M7 13h10M7 17h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>گزارش</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Import modal -->
+  <div id="import-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>افزودن کانفیگ</h3>
+      <div class="import-tabs">
+        <button class="import-tab-btn active" data-import-tab="links">لینک‌های تکی</button>
+        <button class="import-tab-btn" data-import-tab="sub">سابسکریپشن</button>
+        <button class="import-tab-btn" data-import-tab="wg">WireGuard</button>
+      </div>
+
+      <div id="import-tab-links" class="import-tab-panel active">
+        <p class="settings-hint">یک یا چند لینک (هر خط یک لینک) با فرمت <code>vless://</code>، <code>trojan://</code>، <code>vmess://</code>، <code>ss://</code>، <code>tuic://</code> یا <code>hysteria2://</code> وارد کنید.</p>
+        <textarea id="import-textarea" class="import-textarea" rows="6" placeholder="vless://uuid@server:443?security=reality&amp;..."></textarea>
+        <div id="import-errors" class="import-errors"></div>
+        <div class="modal-actions">
+          <button id="btn-import-cancel" class="btn-secondary">انصراف</button>
+          <button id="btn-import-confirm" class="btn-primary">افزودن</button>
+        </div>
+      </div>
+
+      <div id="import-tab-sub" class="import-tab-panel">
+        <p class="settings-hint">لینک سابسکریپشن (Subscription) پنل خود را وارد کنید. اگر پنل حجم مصرفی را گزارش کند، به‌صورت خودکار نمایش داده می‌شود.</p>
+        <input id="sub-remark-input" class="text-input" type="text" placeholder="نام دلخواه (اختیاری)" style="margin-bottom:8px;" />
+        <input id="sub-url-input" class="text-input" type="text" placeholder="https://panel.example.com/sub/abc123" dir="ltr" />
+        <div id="sub-errors" class="import-errors"></div>
+        <div class="modal-actions">
+          <button id="btn-sub-cancel" class="btn-secondary">انصراف</button>
+          <button id="btn-sub-confirm" class="btn-primary">افزودن سابسکریپشن</button>
+        </div>
+      </div>
+
+      <div id="import-tab-wg" class="import-tab-panel">
+        <p class="settings-hint">محتوای فایل <code>.conf</code> استاندارد WireGuard (بخش‌های [Interface] و [Peer]) را کامل کپی و اینجا وارد کنید. فقط با هستهٔ sing-box کار می‌کند.</p>
+        <input id="wg-remark-input" class="text-input" type="text" placeholder="نام دلخواه (اختیاری)" style="margin-bottom:8px;" />
+        <textarea id="wg-textarea" class="import-textarea" rows="8" placeholder="[Interface]&#10;PrivateKey = ...&#10;Address = 10.0.0.2/32&#10;&#10;[Peer]&#10;PublicKey = ...&#10;Endpoint = server:51820&#10;AllowedIPs = 0.0.0.0/0" dir="ltr"></textarea>
+        <div id="wg-errors" class="import-errors"></div>
+        <div class="modal-actions">
+          <button id="btn-wg-cancel" class="btn-secondary">انصراف</button>
+          <button id="btn-wg-confirm" class="btn-primary">افزودن WireGuard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Speed test modal -->
+  <div id="speedtest-modal" class="modal-overlay hidden">
+    <div class="modal modal-small">
+      <h3>تست سرعت واقعی</h3>
+      <div class="speedtest-row">
+        <span class="speedtest-icon down-icon">↓</span>
+        <span class="speedtest-label">دانلود</span>
+        <span class="speedtest-value" id="speedtest-download">—</span>
+      </div>
+      <div class="speedtest-row">
+        <span class="speedtest-icon up-icon">↑</span>
+        <span class="speedtest-label">آپلود</span>
+        <span class="speedtest-value" id="speedtest-upload">—</span>
+      </div>
+      <p class="settings-hint" id="speedtest-status">در حال آماده‌سازی…</p>
+      <div class="modal-actions">
+        <button id="btn-speedtest-close" class="btn-secondary">بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename modal -->
+  <div id="rename-modal" class="modal-overlay hidden">
+    <div class="modal modal-small">
+      <h3>تغییر نام کانفیگ</h3>
+      <input id="rename-input" class="text-input" type="text" />
+      <div class="modal-actions">
+        <button id="btn-rename-cancel" class="btn-secondary">انصراف</button>
+        <button id="btn-rename-confirm" class="btn-primary">ذخیره</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit config modal -->
+  <div id="edit-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>ویرایش کانفیگ</h3>
+      <div id="edit-fields" class="edit-fields"><!-- injected dynamically based on protocol --></div>
+      <div class="modal-actions">
+        <button id="btn-edit-cancel" class="btn-secondary">انصراف</button>
+        <button id="btn-edit-confirm" class="btn-primary">ذخیره</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
