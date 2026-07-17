@@ -73,7 +73,6 @@
             <div class="stats-icon icon-up"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
             <div class="stats-value"><span id="stat-upload">۰</span></div>
             <div class="stats-unit" id="stat-upload-unit">KB/s</div>
-            <div class="stats-caption">سرعت آپلود</div>
           </div>
           <div class="stats-col stats-col-mid">
             <div class="stats-icon icon-proto"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -84,35 +83,39 @@
             <div class="stats-icon icon-down"><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
             <div class="stats-value"><span id="stat-download">۰</span></div>
             <div class="stats-unit" id="stat-download-unit">KB/s</div>
-            <div class="stats-caption">سرعت دانلود</div>
           </div>
         </div>
 
-        <div id="row-server-ip" class="server-row">
-          <span class="server-row-flag">
-            <svg viewBox="0 0 24 24"><path d="M4 4v16M4 5h13l-2.5 3L17 11H4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="server-row-text">
-            <span class="server-row-name" id="status-profile">کانفیگی انتخاب نشده</span>
-            <span class="server-row-sub" id="server-ip-value">مشخص نشده</span>
-          </span>
-          <span class="server-row-signal" id="server-row-signal">
-            <svg viewBox="0 0 20 14" width="20" height="14"><rect x="1" y="9" width="3" height="5" rx="1"/><rect x="6" y="6" width="3" height="8" rx="1"/><rect x="11" y="3" width="3" height="11" rx="1"/><rect x="16" y="0" width="3" height="14" rx="1"/></svg>
-          </span>
+        <button id="config-card" class="config-card state-empty">
+          <div class="config-card-main">
+            <span class="config-card-icon" id="config-card-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 4v16M4 5h13l-2.5 3L17 11H4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="config-card-text">
+              <span class="config-card-title" id="status-profile">کانفیگی انتخاب نشده</span>
+              <span class="config-card-sub" id="server-ip-value">برای انتخاب یا تعویض کانفیگ لمس کنید</span>
+            </span>
+            <span class="config-card-signal" id="server-row-signal">
+              <svg viewBox="0 0 20 14" width="20" height="14"><rect x="1" y="9" width="3" height="5" rx="1"/><rect x="6" y="6" width="3" height="8" rx="1"/><rect x="11" y="3" width="3" height="11" rx="1"/><rect x="16" y="0" width="3" height="14" rx="1"/></svg>
+            </span>
+            <span class="config-card-chevron">‹</span>
+          </div>
+          <div id="sub-quota-card" class="sub-quota-card hidden"><!-- injected when connected via a subscription config --></div>
+        </button>
+
+        <div id="quality-banner" class="quality-banner hidden">
+          <span id="quality-banner-text">کیفیت اتصال افت کرده است</span>
+          <button id="quality-banner-action" class="quality-banner-btn">اعمال بهبود</button>
+          <button id="quality-banner-dismiss" class="quality-banner-close">✕</button>
         </div>
 
-        <div id="sub-quota-card" class="sub-quota-card hidden"><!-- injected when connected via a subscription config --></div>
-
-        <button id="btn-goto-profiles-banner" class="choose-banner">
-          <span class="choose-banner-chevron">‹</span>
-          <span class="choose-banner-text">
-            <span class="choose-banner-title">کانفیگ‌ها</span>
-            <span class="choose-banner-sub">افزودن یا تعویض کانفیگ</span>
-          </span>
-          <span class="choose-banner-icon">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15.5 0 18M12 3c-2.5 2.5-2.5 15.5 0 18" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
-          </span>
-        </button>
+        <div id="quality-graph-wrap" class="quality-graph-wrap hidden">
+          <div class="quality-graph-head">
+            <span>کیفیت اتصال (میانگین/جیتر/افت‌بسته)</span>
+            <span id="quality-graph-stats" class="quality-graph-stats"></span>
+          </div>
+          <svg id="quality-graph-svg" viewBox="0 0 300 60" preserveAspectRatio="none" class="quality-graph-svg"></svg>
+        </div>
 
         <div class="quick-grid">
           <button class="quick-tile" id="tile-speedtest">
@@ -132,6 +135,7 @@
             <span>تاریخچه اتصال</span>
           </button>
         </div>
+
       </section>
 
       <!-- PROFILES -->
@@ -253,7 +257,16 @@
           </div>
 
           <div class="settings-card">
-            <h3>فایل‌های Geo (موقعیت جغرافیایی IP)</h3>
+            <h3>کیفیت زندهٔ اتصال (اختیاری)</h3>
+            <p class="settings-hint">این گزینه‌ها فقط با روشن کردن «پینگ خودکار دورهای» (بالا) کار می‌کنند. هرکدوم رو جدا امتحان کنید؛ اگه وضعیت بدتر شد، خاموشش کنید.</p>
+            <label class="toggle-row"><input id="toggle-quality-graph" type="checkbox" /><span>نمایش نمودار زندهٔ کیفیت (تاخیر/جیتر/افت‌بسته)</span></label>
+            <label class="toggle-row"><input id="toggle-adaptive-fragment" type="checkbox" /><span>روشن کردن خودکار Fragment هنگام افت کیفیت</span></label>
+            <label class="toggle-row"><input id="toggle-auto-switch-quality" type="checkbox" /><span>سوییچ خودکار به بهترین کانفیگ هنگام افت کیفیت</span></label>
+            <label class="toggle-row toggle-row-emphasis"><input id="toggle-auto-apply" type="checkbox" /><span>اجازهٔ اعمال خودکار این دو مورد بدون تایید من (وگرنه فقط پیشنهاد نمایش داده می‌شود)</span></label>
+          </div>
+
+          <details class="settings-card">
+            <summary><h3>فایل‌های Geo (موقعیت جغرافیایی IP)</h3></summary>
             <p class="settings-hint">برای فعال بودن گزینهٔ «عبور مستقیم ترافیک ایران» لازم است.</p>
             <div id="geo-fields-xray">
               <label class="field-label">geoip.dat (Xray)</label>
@@ -276,10 +289,10 @@
             </div>
             <button id="btn-update-geo" class="btn-primary full-width">دانلود / بروزرسانی فایل‌های Geo</button>
             <span id="geo-update-msg" class="saved-msg"></span>
-          </div>
+          </details>
 
-          <div class="settings-card">
-            <h3>ظاهر برنامه</h3>
+          <details class="settings-card">
+            <summary><h3>ظاهر برنامه</h3></summary>
             <label class="field-label">اندازهٔ نوشته‌ها</label>
             <div class="font-scale-row">
               <button id="font-dec" class="btn-mini font-btn">آ−</button>
@@ -293,12 +306,23 @@
               <option value="info">اطلاعات</option>
               <option value="debug">اشکال‌زدایی (کامل)</option>
             </select>
-          </div>
+          </details>
 
           <button id="btn-save-settings" class="btn-primary full-width">ذخیرهٔ تنظیمات</button>
           <span id="settings-saved-msg" class="saved-msg center-msg"></span>
         </div>
       </section>
+
+      <div id="reconnect-confirm-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <h3>اعمال تنظیمات نیاز به اتصال مجدد دارد</h3>
+          <p>برخی تنظیمات ذخیره‌شده روی اتصال فعلی اثر می‌گذارند. برای اعمال شدن، لازم است اتصال قطع و دوباره برقرار شود. ادامه می‌دهید؟</p>
+          <div class="modal-actions">
+            <button id="reconnect-confirm-cancel" class="btn-secondary">فقط ذخیره (بدون اتصال مجدد)</button>
+            <button id="reconnect-confirm-ok" class="btn-primary">قطع و اتصال مجدد</button>
+          </div>
+        </div>
+      </div>
 
       <!-- LOGS -->
       <section id="screen-logs" class="screen">

@@ -14,7 +14,9 @@ contextBridge.exposeInMainWorld('signalray', {
     importWireguard: (text, remark) => ipcRenderer.invoke('profiles:importWireguard', { text, remark }),
     delete: (id) => ipcRenderer.invoke('profiles:delete', id),
     rename: (id, remark) => ipcRenderer.invoke('profiles:rename', { id, remark }),
-    update: (id, fields) => ipcRenderer.invoke('profiles:update', { id, fields })
+    update: (id, fields) => ipcRenderer.invoke('profiles:update', { id, fields }),
+    getLastActive: () => ipcRenderer.invoke('profiles:lastActive'),
+    setLastActive: (id) => ipcRenderer.invoke('profiles:setLastActive', id)
   },
   subscriptions: {
     list: () => ipcRenderer.invoke('subscriptions:list'),

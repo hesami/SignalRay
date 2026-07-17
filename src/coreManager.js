@@ -188,7 +188,8 @@ class CoreManager extends EventEmitter {
     if (this.activeCore === 'singbox') {
       this._startSingboxTrafficStream();
     } else {
-      this.statsTimer = setInterval(() => this._pollXrayStatsOnce(), 5000);
+      this._pollXrayStatsOnce();
+      this.statsTimer = setInterval(() => this._pollXrayStatsOnce(), 1000);
     }
   }
 
@@ -287,6 +288,21 @@ class CoreManager extends EventEmitter {
    * address:port — no core process, no tunnel, just a TCP SYN/ACK timing.
    * Lets the user check a config's reachability/latency before connecting.
    */
+  /** Multiple quick TCP-connect samples -> {ok, avgMs, jitterMs, lossPct}. Used for
+   *  quality-aware server selection (not just a single, possibly-lucky ping). */
+  async pingQuality(address, port, samples = 3, timeoutMs = 3000) {
+    const results = [];
+    for (let i = 0; i < samples; i++) results.push(await this.pingDirect(address, port, timeoutMs));
+    const oks = results.filter((r) => r.ok);
+    const lossPct = Math.round(((results.length - oks.length) / results.length) * 100);
+    if (!oks.length) return { ok: false, lossPct: 100 };
+    const avgMs = Math.round(oks.reduce((a, r) => a + r.ms, 0) / oks.length);
+    let jitterMs = 0;
+    for (let i = 1; i < oks.length; i++) jitterMs += Math.abs(oks[i].ms - oks[i - 1].ms);
+    jitterMs = oks.length > 1 ? Math.round(jitterMs / (oks.length - 1)) : 0;
+    return { ok: true, avgMs, jitterMs, lossPct };
+  }
+
   pingDirect(address, port, timeoutMs = 6000) {
     return new Promise((resolve) => {
       const start = Date.now();

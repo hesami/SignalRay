@@ -31,7 +31,11 @@ const DEFAULT_SETTINGS = {
   periodicHealthCheck: false,
   periodicHealthCheckIntervalSec: 30,
   autoSelectBest: false,
-  showLiveStats: true
+  showLiveStats: true,
+  showQualityGraph: false,
+  adaptiveFragment: false,
+  autoSwitchOnBadQuality: false,
+  autoApplyOptimizations: false
 };
 
 class Store {

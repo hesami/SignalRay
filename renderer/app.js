@@ -9,7 +9,8 @@ const state = {
   connection: { status: 'disconnected', profileId: null, uptimeMs: 0 },
   pingResults: {}, // profileId -> {ok, ms} | {ok:false}
   renameTargetId: null,
-  lastPingMs: null
+  lastPingMs: null,
+  qualitySamples: []
 };
 
 const el = (id) => document.getElementById(id);
@@ -32,9 +33,10 @@ el('btn-close').addEventListener('click', () => window.signalray.win.close());
 function goToScreen(name) {
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.screen === name));
   document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === `screen-${name}`));
+  if (name === 'logs' && typeof queueLogRender === 'function') queueLogRender();
 }
 document.querySelectorAll('.nav-btn').forEach((btn) => btn.addEventListener('click', () => goToScreen(btn.dataset.screen)));
-el('btn-goto-profiles-banner').addEventListener('click', () => goToScreen('profiles'));
+el('config-card').addEventListener('click', () => goToScreen('profiles'));
 
 el('btn-quick-refresh').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
@@ -222,6 +224,7 @@ async function selectProfile(id) {
   const switchingProfile = state.connection.profileId && state.connection.profileId !== id;
 
   state.selectedProfileId = id;
+  window.signalray.profiles.setLastActive(id).catch(() => {});
   refreshAllProfileViews();
   refreshConnectButton();
   const profile = state.profiles.find((p) => p.id === id);
@@ -625,6 +628,10 @@ function applyStatusToUI(payload) {
   if (payload.status === 'connected') {
     startUptimeAndPingLoop();
     startParticles();
+    if (state._prevStatus !== 'connected') {
+      playConnectSound();
+      burstConfetti();
+    }
   } else {
     stopUptimeAndPingLoop();
     stopParticles();
@@ -644,17 +651,23 @@ function applyStatusToUI(payload) {
       el('stat-protocol').textContent = profile.protocol.toUpperCase();
     }
     updateHomeSubQuotaCard(profile);
+    el('config-card').className = `config-card ${payload.status === 'connected' ? 'state-connected' : 'state-ready'}`;
   } else if (state.selectedProfileId) {
     const profile = state.profiles.find((p) => p.id === state.selectedProfileId);
     el('status-profile').textContent = profile ? profile.remark : 'کانفیگی انتخاب نشده';
     if (profile) el('stat-protocol').textContent = profile.protocol.toUpperCase();
     updateHomeSubQuotaCard(profile);
+    el('config-card').className = `config-card ${profile ? 'state-ready' : 'state-empty'}`;
+    if (profile) el('server-ip-value').textContent = el('server-ip-value').textContent || '...';
   } else {
     updateHomeSubQuotaCard(null);
+    el('config-card').className = 'config-card state-empty';
+    el('server-ip-value').textContent = 'برای انتخاب یا تعویض کانفیگ لمس کنید';
   }
 
   if (payload.error) showToast(payload.error, 'error');
   refreshConnectButton();
+  state._prevStatus = payload.status;
 }
 
 /** Shows a compact subscription quota card on Home whenever the active/selected config belongs to a subscription. */
@@ -726,11 +739,20 @@ function startUptimeAndPingLoop() {
   }, 1000);
 
   const pingOnce = async () => {
-    const res = await window.signalray.core.ping();
-    if (res.ok) {
-      state.lastPingMs = res.ms;
-      setSignalQuality(res.ms);
+    let sample;
+    try {
+      const res = await window.signalray.core.ping();
+      sample = res.ok ? { ok: true, ms: res.ms } : { ok: false };
+    } catch {
+      sample = { ok: false };
     }
+    if (sample.ok) {
+      state.lastPingMs = sample.ms;
+      setSignalQuality(sample.ms);
+    }
+    state.qualitySamples.push(sample);
+    if (state.qualitySamples.length > 12) state.qualitySamples.shift();
+    evaluateQuality();
   };
   pingOnce(); // one health-check right after connecting, to populate the signal indicator
 
@@ -740,6 +762,8 @@ function startUptimeAndPingLoop() {
   if (state.settings && state.settings.periodicHealthCheck) {
     const intervalMs = Math.max(15, state.settings.periodicHealthCheckIntervalSec || 30) * 1000;
     pingLoopTimer = setInterval(pingOnce, intervalMs);
+  } else {
+    el('quality-graph-wrap').classList.add('hidden');
   }
 }
 function stopUptimeAndPingLoop() {
@@ -747,6 +771,164 @@ function stopUptimeAndPingLoop() {
   clearInterval(pingLoopTimer);
   uptimeTimer = null;
   pingLoopTimer = null;
+  state.qualitySamples = [];
+  el('quality-banner').classList.add('hidden');
+  el('quality-graph-wrap').classList.add('hidden');
+}
+
+// ---------- Live quality window: avg/jitter/loss from recent samples, feeds the graph + auto-actions ----------
+function computeQuality() {
+  const samples = state.qualitySamples;
+  if (samples.length < 3) return null;
+  const oks = samples.filter((s) => s.ok);
+  const lossPct = Math.round(((samples.length - oks.length) / samples.length) * 100);
+  if (!oks.length) return { avg: null, jitter: null, lossPct };
+  const avg = Math.round(oks.reduce((a, s) => a + s.ms, 0) / oks.length);
+  let jitter = 0;
+  for (let i = 1; i < oks.length; i++) jitter += Math.abs(oks[i].ms - oks[i - 1].ms);
+  jitter = oks.length > 1 ? Math.round(jitter / (oks.length - 1)) : 0;
+  return { avg, jitter, lossPct };
+}
+function renderQualityGraph() {
+  const svg = el('quality-graph-svg');
+  const samples = state.qualitySamples;
+  const q = computeQuality();
+  el('quality-graph-stats').textContent = q ? `${toPersianDigits(q.avg ?? '—')}ms · جیتر ${toPersianDigits(q.jitter ?? '—')} · افت ${toPersianDigits(q.lossPct)}٪` : '…';
+  const w = 300, h = 46, pad = 4;
+  const vals = samples.map((s) => (s.ok ? s.ms : null));
+  const okVals = vals.filter((v) => v != null);
+  const max = Math.max(150, ...okVals);
+  const step = vals.length > 1 ? (w - pad * 2) / (vals.length - 1) : 0;
+  let points = '';
+  let dots = '';
+  vals.forEach((v, i) => {
+    const x = pad + i * step;
+    const y = v == null ? h - pad : h - pad - (v / max) * (h - pad * 2);
+    points += `${x},${y} `;
+    dots += `<circle cx="${x}" cy="${y}" r="2.2" fill="${v == null ? 'var(--signal-error)' : 'var(--green-1)'}" />`;
+  });
+  svg.innerHTML = `<polyline points="${points.trim()}" fill="none" stroke="var(--green-2)" stroke-width="1.6" />${dots}`;
+}
+let lastAutoActionAt = 0;
+let lastSuggestionShownFor = null;
+function evaluateQuality() {
+  const q = computeQuality();
+  if (state.settings && state.settings.showQualityGraph) {
+    el('quality-graph-wrap').classList.remove('hidden');
+    renderQualityGraph();
+  }
+  if (!q) return;
+  const bad = q.lossPct >= 30 || (q.jitter != null && q.jitter >= 180) || (q.avg != null && q.avg >= 700);
+  if (!bad) {
+    el('quality-banner').classList.add('hidden');
+    return;
+  }
+  const wantsFragmentFix = state.settings.adaptiveFragment && !state.settings.enableFragment;
+  const wantsSwitch = state.settings.autoSwitchOnBadQuality;
+  if (!wantsFragmentFix && !wantsSwitch) return;
+
+  const cooldownOk = Date.now() - lastAutoActionAt > 2 * 60 * 1000;
+  if (state.settings.autoApplyOptimizations) {
+    if (!cooldownOk) return;
+    lastAutoActionAt = Date.now();
+    if (wantsFragmentFix) applyAdaptiveFragment();
+    else if (wantsSwitch) applyAutoSwitch();
+  } else {
+    // Permission not granted: surface a suggestion instead of acting.
+    const key = wantsFragmentFix ? 'fragment' : 'switch';
+    if (lastSuggestionShownFor === key) return; // don't repeat the same nag every tick
+    lastSuggestionShownFor = key;
+    el('quality-banner-text').textContent = wantsFragmentFix
+      ? 'کیفیت اتصال افت کرده — روشن کردن Fragment ممکن است کمک کند'
+      : 'کیفیت اتصال افت کرده — سوییچ به بهترین کانفیگ پیشنهاد می‌شود';
+    el('quality-banner').classList.remove('hidden');
+    el('quality-banner-action').onclick = () => {
+      el('quality-banner').classList.add('hidden');
+      lastAutoActionAt = Date.now();
+      if (wantsFragmentFix) applyAdaptiveFragment();
+      else applyAutoSwitch();
+    };
+  }
+}
+async function applyAdaptiveFragment() {
+  showToast('در حال روشن کردن Fragment و اتصال مجدد برای بهبود کیفیت…');
+  const settings = await window.signalray.settings.get();
+  await window.signalray.settings.save({ ...settings, enableFragment: true });
+  state.settings.enableFragment = true;
+  applyStatusToUI({ status: 'connecting' });
+  try {
+    const status = await window.signalray.core.connect(state.connection.profileId || state.selectedProfileId);
+    applyStatusToUI(status);
+    showToast('Fragment روشن شد و اتصال مجدد برقرار شد', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+async function applyAutoSwitch() {
+  showToast('در حال سوییچ به بهترین کانفیگ…');
+  try {
+    const { bestId } = await window.signalray.core.findBest();
+    if (bestId && bestId !== state.connection.profileId) {
+      state.selectedProfileId = bestId;
+      applyStatusToUI({ status: 'connecting' });
+      const status = await window.signalray.core.connect(bestId);
+      applyStatusToUI(status);
+      showToast('به کانفیگ بهتری سوییچ شد', 'success');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+el('quality-banner-dismiss').addEventListener('click', () => el('quality-banner').classList.add('hidden'));
+
+// ---------- One-shot "connected!" celebration: chime + confetti ----------
+function playConnectSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99]; // C5 - E5 - G5, a simple bright arpeggio
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.09;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.16, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.4);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 900);
+  } catch {
+    /* Web Audio unavailable — silently skip, the confetti still plays */
+  }
+}
+const CONFETTI_COLORS = ['#5cffb0', '#3ec7e0', '#9a6dfb', '#ffd479', '#ff8fd0'];
+function burstConfetti() {
+  const layer = el('particle-layer');
+  if (!layer) return;
+  for (let i = 0; i < 26; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 70 + Math.random() * 90;
+    const x = Math.cos(angle) * distance;
+    const y = Math.sin(angle) * distance - 20;
+    const size = 5 + Math.random() * 5;
+    const duration = 0.9 + Math.random() * 0.7;
+    const spin = (Math.random() > 0.5 ? 1 : -1) * (180 + Math.random() * 360);
+    const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    piece.style.setProperty('--c-x', `${x}px`);
+    piece.style.setProperty('--c-y', `${y}px`);
+    piece.style.setProperty('--c-size', `${size}px`);
+    piece.style.setProperty('--c-duration', `${duration}s`);
+    piece.style.setProperty('--c-spin', `${spin}deg`);
+    piece.style.setProperty('--c-color', color);
+    layer.appendChild(piece);
+    piece.addEventListener('animationend', () => piece.remove());
+  }
 }
 
 // ---------- Light particle burst (visual "connection alive" feedback) ----------
@@ -847,6 +1029,7 @@ el('btn-toggle-connect').addEventListener('click', async () => {
     goToScreen('profiles');
     return;
   }
+  applyStatusToUI({ status: 'connecting' });
   try {
     const status = await window.signalray.core.connect(state.selectedProfileId);
     applyStatusToUI(status);
@@ -856,21 +1039,39 @@ el('btn-toggle-connect').addEventListener('click', async () => {
 });
 
 window.signalray.core.onStatus((payload) => applyStatusToUI(payload));
-let logLineCount = 0;
+// Bounded ring buffer + batched, single-frame DOM writes: unbounded
+// "textContent += line" for a long-running connection grows without limit
+// and gets slower with every append, which is exactly what was freezing the
+// app when opening the logs screen. Capping the buffer and writing to the
+// DOM at most once per frame (and only while the screen is actually visible)
+// keeps this cheap no matter how long the connection has been up.
+const LOG_MAX_LINES = 800;
+let logBuffer = [];
+let logRenderQueued = false;
+function queueLogRender() {
+  if (logRenderQueued) return;
+  logRenderQueued = true;
+  requestAnimationFrame(() => {
+    logRenderQueued = false;
+    if (!document.getElementById('screen-logs').classList.contains('active')) return;
+    const out = el('log-output');
+    out.textContent = logBuffer.join('\n');
+    out.scrollTop = out.scrollHeight;
+  });
+}
 window.signalray.core.onLog((line) => {
-  const out = el('log-output');
-  out.textContent += line + '\n';
-  out.scrollTop = out.scrollHeight;
-  logLineCount++;
-  el('log-line-count').textContent = `${toPersianDigits(logLineCount)} خط`;
+  logBuffer.push(line);
+  if (logBuffer.length > LOG_MAX_LINES) logBuffer.splice(0, logBuffer.length - LOG_MAX_LINES);
+  el('log-line-count').textContent = `${toPersianDigits(logBuffer.length)} خط`;
+  queueLogRender();
 });
 el('btn-clear-log').addEventListener('click', () => {
+  logBuffer = [];
   el('log-output').textContent = '';
-  logLineCount = 0;
   el('log-line-count').textContent = '۰ خط';
 });
 el('btn-copy-log').addEventListener('click', async () => {
-  const text = el('log-output').textContent;
+  const text = logBuffer.join('\n');
   if (!text.trim()) {
     showToast('گزارشی برای کپی وجود ندارد', 'error');
     return;
@@ -908,6 +1109,10 @@ async function loadSettingsIntoForm() {
   el('toggle-auto-select-best').checked = !!s.autoSelectBest;
   el('toggle-periodic-health').checked = !!s.periodicHealthCheck;
   el('toggle-live-stats').checked = s.showLiveStats !== false;
+  el('toggle-quality-graph').checked = !!s.showQualityGraph;
+  el('toggle-adaptive-fragment').checked = !!s.adaptiveFragment;
+  el('toggle-auto-switch-quality').checked = !!s.autoSwitchOnBadQuality;
+  el('toggle-auto-apply').checked = !!s.autoApplyOptimizations;
   el('toggle-dns-through-tunnel').checked = s.dnsThroughTunnel !== false;
   el('toggle-fragment').checked = !!s.enableFragment;
   el('toggle-mux').checked = !!s.enableMux;
@@ -1002,8 +1207,31 @@ el('btn-find-mtu').addEventListener('click', async () => {
   }
 });
 
+const RECONNECT_REQUIRED_KEYS = [
+  'corePathXray', 'corePathSingbox', 'activeCore', 'socksPort', 'httpPort',
+  'bypassLAN', 'bypassIran', 'dnsThroughTunnel', 'enableFragment', 'enableMux',
+  'muxConcurrency', 'enableTcpFastOpen', 'domainStrategy', 'defaultFingerprint',
+  'dnsServers', 'mtu', 'geoipDatPath', 'geositeDatPath', 'singboxGeoipIrPath'
+];
+
+function confirmReconnect() {
+  return new Promise((resolve) => {
+    const modal = el('reconnect-confirm-modal');
+    modal.classList.remove('hidden');
+    const cleanup = (result) => {
+      modal.classList.add('hidden');
+      el('reconnect-confirm-ok').onclick = null;
+      el('reconnect-confirm-cancel').onclick = null;
+      resolve(result);
+    };
+    el('reconnect-confirm-ok').onclick = () => cleanup(true);
+    el('reconnect-confirm-cancel').onclick = () => cleanup(false);
+  });
+}
+
 el('btn-save-settings').addEventListener('click', async () => {
   const activeCoreEl = document.querySelector('input[name="active-core"]:checked');
+  const previous = state.settings || {};
   const partial = {
     corePathXray: el('path-xray').value.trim(),
     corePathSingbox: el('path-singbox').value.trim(),
@@ -1016,6 +1244,10 @@ el('btn-save-settings').addEventListener('click', async () => {
     autoSelectBest: el('toggle-auto-select-best').checked,
     periodicHealthCheck: el('toggle-periodic-health').checked,
     showLiveStats: el('toggle-live-stats').checked,
+    showQualityGraph: el('toggle-quality-graph').checked,
+    adaptiveFragment: el('toggle-adaptive-fragment').checked,
+    autoSwitchOnBadQuality: el('toggle-auto-switch-quality').checked,
+    autoApplyOptimizations: el('toggle-auto-apply').checked,
     dnsThroughTunnel: el('toggle-dns-through-tunnel').checked,
     enableFragment: el('toggle-fragment').checked,
     enableMux: el('toggle-mux').checked,
@@ -1030,11 +1262,35 @@ el('btn-save-settings').addEventListener('click', async () => {
     geositeDatPath: el('path-geosite-dat').value.trim(),
     singboxGeoipIrPath: el('path-geoip-srs').value.trim()
   };
+
+  const changedReconnectKey = RECONNECT_REQUIRED_KEYS.some((k) => previous[k] !== partial[k]);
+  const isConnected = state.connection.status === 'connected';
+  let shouldReconnect = false;
+  if (changedReconnectKey && isConnected) {
+    shouldReconnect = await confirmReconnect();
+  }
+
   state.settings = await window.signalray.settings.save(partial);
 
   const msg = el('settings-saved-msg');
-  msg.textContent = 'ذخیره شد ✓ برای اعمال، اتصال را دوباره برقرار کنید';
-  setTimeout(() => (msg.textContent = ''), 3000);
+  if (shouldReconnect) {
+    const profileId = state.connection.profileId;
+    applyStatusToUI({ status: 'connecting' });
+    try {
+      await window.signalray.core.disconnect();
+      const status = await window.signalray.core.connect(profileId);
+      applyStatusToUI(status);
+      msg.textContent = 'ذخیره شد و اتصال با تنظیمات جدید برقرار شد ✓';
+    } catch (err) {
+      applyStatusToUI({ status: 'error', error: err.message });
+      msg.textContent = 'ذخیره شد، اما اتصال مجدد ناموفق بود';
+    }
+  } else {
+    msg.textContent = changedReconnectKey && isConnected
+      ? 'ذخیره شد ✓ برای اعمال، اتصال را دوباره برقرار کنید'
+      : 'ذخیره شد ✓';
+  }
+  setTimeout(() => (msg.textContent = ''), 3500);
 });
 
 // ---------- Font scale ----------
@@ -1071,9 +1327,16 @@ function escapeHtml(str) {
 (async function init() {
   state.profiles = await window.signalray.profiles.list();
   state.subscriptions = await window.signalray.subscriptions.list();
-  renderProfiles();
-  renderSubscriptions();
   await loadSettingsIntoForm();
   const status = await window.signalray.core.status();
+  if (!status.profileId) {
+    const lastId = await window.signalray.profiles.getLastActive().catch(() => null);
+    if (lastId && state.profiles.some((p) => p.id === lastId)) {
+      state.selectedProfileId = lastId;
+      fetchServerIp(lastId);
+    }
+  }
+  renderProfiles();
+  renderSubscriptions();
   applyStatusToUI(status);
 })();

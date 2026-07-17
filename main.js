@@ -165,6 +165,8 @@ ipcMain.on('win:quit', async () => {
 
 // ---------- IPC: profiles ----------
 ipcMain.handle('profiles:list', () => store.getProfiles());
+ipcMain.handle('profiles:lastActive', () => store.getLastActiveProfile());
+ipcMain.handle('profiles:setLastActive', (_e, id) => { store.setLastActiveProfile(id); return true; });
 
 ipcMain.handle('profiles:import', (_e, text) => {
   const { profiles, errors } = parseBulk(text);
@@ -323,17 +325,23 @@ ipcMain.handle('core:findBest', async () => {
   async function worker() {
     while (idx < profiles.length) {
       const profile = profiles[idx++];
-      results[profile.id] = await core.pingDirect(profile.address, profile.port, 4000);
+      results[profile.id] = await core.pingQuality(profile.address, profile.port, 3, 3000);
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, profiles.length) }, worker));
 
   let bestId = null;
-  let bestMs = Infinity;
+  let bestScore = Infinity;
+  let bestMs = null;
   for (const [id, res] of Object.entries(results)) {
-    if (res.ok && res.ms < bestMs) {
-      bestMs = res.ms;
+    if (!res.ok) continue;
+    // Loss is penalized heavily (a fast-but-lossy path is worse than a
+    // slightly slower, stable one), jitter moderately, latency directly.
+    const score = res.avgMs + res.jitterMs * 2 + res.lossPct * 25;
+    if (score < bestScore) {
+      bestScore = score;
       bestId = id;
+      bestMs = res.avgMs;
     }
   }
   if (!bestId) throw new Error('هیچ کانفیگی پاسخ نداد');
